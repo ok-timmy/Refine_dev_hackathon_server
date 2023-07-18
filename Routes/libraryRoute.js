@@ -7,6 +7,8 @@ const {
   uploadBook,
   approveOrDeclineBookRequest,
   markBookAsReturned,
+  getLibraryData,
+  getRequestedBooks,
 } = require("../Controllers/libraryController");
 
 //REGISTER NEW LIBRARY
@@ -19,6 +21,12 @@ router.post(
 
 //LOGIN LIBRARIANS TO THEIR ACCOUNT
 router.post("/auth/login", loginToLibrary);
+
+//GET LIBRARY DATA
+router.get("/:email", getLibraryData);
+
+//GET REQUESTED BOOKS
+router.get("/requested-books", getRequestedBooks);
 
 // UPDATE LIBRARY
 router.put("/:libraryId", updateLibrary);

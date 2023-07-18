@@ -58,7 +58,7 @@ exports.handleLibrarianRefreshToken = async(req, res) => {
 
         const accessToken = jwt.sign(
           {
-            email: decoded.email,
+            libraryEmail: decoded.email,
           },
           process.env.ACCESS_TOKEN_SECRET,
           {

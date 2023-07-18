@@ -5,6 +5,7 @@ require("dotenv").config();
 const { validationResult } = require("express-validator");
 const saltRounds = 10;
 const User = require("../Models/User");
+const Book = require("../Models/Book");
 
 //SIGN UP USER
 exports.createUser = async (req, res) => {
@@ -22,7 +23,7 @@ exports.createUser = async (req, res) => {
   }
 
   try {
-    const { firstName, secondName, userName, email, password } = req.body;
+    const { firstName, lastName, email, password } = req.body;
     hashedPassword = await bcrypt.hash(password, saltRounds);
     const newUser = await new User({
       firstName,
@@ -136,8 +137,25 @@ exports.updateUserData = async (req, res) => {
   }
 };
 
-
-//REQUEST FOR BOOK 
+//REQUEST FOR BOOK
 exports.requestForBook = async (req, res) => {
-    
-}
+  const { id, userId, promised_return_date } = req.body;
+
+  const bookToBeBorrowed = await Book.findOne({ _id: id });
+
+  try {
+    if (bookToBeBorrowed.status === "available") {
+      bookToBeBorrowed.date_requested = new Date.now();
+      bookToBeBorrowed.date_promised_by_borrower = promised_return_date;
+      bookToBeBorrowed.status = "requested";
+    } else {
+      return res.status(403).json({
+        message: " Book is unavailable or has been requested by another user",
+      });
+    }
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "An Error occured while processing request", error });
+  }
+};
