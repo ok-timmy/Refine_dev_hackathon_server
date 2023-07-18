@@ -33,10 +33,10 @@ app.get("/", (req, res)=>{
 
 app.use("/api/allBooks", booksRoute);
 
+// app.use(verifyJWT);
 app.use("/api/user", userRoute);
 app.use("/api/library", librarianRoute);
 app.use("/api/logout", logoutRoute);
-// app.use(verifyJWT);
 app.use("/api/refresh", refreshRoute);
 
 // app.use(express.static(path.join(__dirname, "/clientside/build")));
