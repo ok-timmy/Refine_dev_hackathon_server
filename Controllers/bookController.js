@@ -25,7 +25,7 @@ exports.fetchSingleBook = async (req, res) => {
     console.log(error);
     return res
       .status(500)
-      .json({ message: "An erro occured while fetching data" });
+      .json({ message: "An error occured while fetching data" });
   }
 };
 
