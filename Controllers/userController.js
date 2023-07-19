@@ -61,7 +61,7 @@ exports.loginUser = async (req, res) => {
 
       if (validate) {
         const accessToken = jwt.sign(
-          { username: foundUser.email },
+          { userEmail: foundUser.email },
           process.env.ACCESS_TOKEN_SECRET,
           { expiresIn: "12000s" }
         );
@@ -82,16 +82,14 @@ exports.loginUser = async (req, res) => {
           secure: true,
         });
 
-        const { _id, email, firstName, lastName, bio, image } = foundUser;
+        const foundUserExceptPassword = await User.findOne({
+          email: req.body.email,
+        })
+          .select("-password")
+          .select("-refreshToken");
 
         res.status(200).json({
-          _id,
-          email,
-          firstName,
-          lastName,
-          userName,
-          bio,
-          image,
+          data: foundUserExceptPassword,
           accessToken,
         });
       } else {
@@ -101,6 +99,7 @@ exports.loginUser = async (req, res) => {
       res.status(401).send({ message: "User does not exist" });
     }
   } catch (error) {
+    console.log(error);
     res.status(403).send({ message: error });
   }
 };
@@ -110,7 +109,7 @@ exports.getUserData = async (req, res) => {
   try {
     const foundUser = await User.findOne({ email: req.params.email })
       .select("-password")
-      .select("-refreshToken");
+      .select("-refreshToken").populate("booksRequested").populate("booksBorrowed");
     res.status(200).json(foundUser);
   } catch {
     console.log(error);
@@ -141,13 +140,40 @@ exports.updateUserData = async (req, res) => {
 exports.requestForBook = async (req, res) => {
   const { id, userId, promised_return_date } = req.body;
 
+  if (!id || !userId || !promised_return_date) {
+    return res
+      .status(403)
+      .json({ message: "One of the required parameters is missing" });
+  }
+
   const bookToBeBorrowed = await Book.findOne({ _id: id });
 
   try {
     if (bookToBeBorrowed.status === "available") {
-      bookToBeBorrowed.date_requested = new Date.now();
-      bookToBeBorrowed.date_promised_by_borrower = promised_return_date;
-      bookToBeBorrowed.status = "requested";
+      const bookRequested = await bookToBeBorrowed.updateOne(
+        {
+          $set: {
+            date_requested: new Date(),
+            date_promised_by_borrower: promised_return_date,
+            status: "requested",
+            requester: userId,
+          },
+        },
+        {
+          new: true,
+        }
+      );
+      await User.findByIdAndUpdate(userId, {
+        $push: {
+          booksRequested: id,
+        },
+      }, {
+        new: true
+      });
+      return res.status(200).json({
+        message: "Book request has been sent",
+        data: bookRequested,
+      });
     } else {
       return res.status(403).json({
         message: " Book is unavailable or has been requested by another user",

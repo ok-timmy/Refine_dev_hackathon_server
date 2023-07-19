@@ -10,6 +10,8 @@ const {
   getLibraryData,
   getRequestedBooks,
 } = require("../Controllers/libraryController");
+const verifyJWT = require("../Middlewares/verifyJWT");
+const verifyLibrarian = require("../Middlewares/verifyLibrarian");
 
 //REGISTER NEW LIBRARY
 router.post(
@@ -22,22 +24,23 @@ router.post(
 //LOGIN LIBRARIANS TO THEIR ACCOUNT
 router.post("/auth/login", loginToLibrary);
 
+
 //GET LIBRARY DATA
-router.get("/:email", getLibraryData);
+router.get("/:email", verifyJWT, getLibraryData);
 
 //GET REQUESTED BOOKS
-router.get("/requested-books", getRequestedBooks);
+router.get("/requested-books", verifyJWT, getRequestedBooks);
 
 // UPDATE LIBRARY
-router.put("/:libraryId", updateLibrary);
+router.put("/:libraryId", verifyJWT, verifyLibrarian, updateLibrary);
 
 // UPLOAD BOOK
-router.post("/uploadBook", uploadBook);
+router.post("/uploadBook", verifyJWT, verifyLibrarian, uploadBook);
 
 //APPROVE OR DECLINE BOOK
-router.post("/approveOrDecline", approveOrDeclineBookRequest);
+router.post("/approveOrDecline", verifyJWT, verifyLibrarian, approveOrDeclineBookRequest);
 
 //MARK BOOK AS RETURNED
-router.post("/markAsReturned", markBookAsReturned);
+router.post("/markAsReturned", verifyJWT, verifyLibrarian, markBookAsReturned);
 
 module.exports = router;

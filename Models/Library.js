@@ -13,9 +13,11 @@ const librarySchema = new mongoose.Schema(
     },
     about: {
       type: String,
+      default: ""
     },
     address: {
       type: String,
+      required: true,
     },
     password: {
       type: String,

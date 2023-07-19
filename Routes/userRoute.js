@@ -7,6 +7,7 @@ const {
   requestForBook,
   getUserData,
 } = require("../Controllers/userController");
+const verifyJWT = require("../Middlewares/verifyJWT");
 
 //REGISTER NEW USER
 router.post(
@@ -19,13 +20,14 @@ router.post(
 //LOGIN USER TO THEIR ACCOUNT
 router.post("/auth/login", loginUser);
 
+
 //GET USER DATA
-router.get("/:email", getUserData);
+router.get("/:email", verifyJWT, getUserData);
 
 // UPDATE USER DETAILS
-router.put("/:id", updateUserData);
+router.put("/:id", verifyJWT, updateUserData);
 
 //REQUEST FOR BOOK
-router.post("/request-book", requestForBook);
+router.post("/request-book", verifyJWT, requestForBook);
 
 module.exports = router;

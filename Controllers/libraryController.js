@@ -5,6 +5,7 @@ const { validationResult } = require("express-validator");
 const saltRounds = 10;
 const Library = require("../Models/Library");
 const Book = require("../Models/Book");
+const User = require("../Models/User");
 
 // CREATE LIBRARY
 exports.createLibrary = async (req, res) => {
@@ -83,27 +84,15 @@ exports.loginToLibrary = async (req, res) => {
           secure: true,
         });
 
-        const {
-          _id,
-          email,
-          libraryName,
-          address,
-          about,
-          image,
-          booksRequested,
-          availableBooks,
-        } = foundLibrary;
+        const foundLibraryExceptPassword = await Library.findOne({
+          email: req.body.email,
+        })
+          .select("-password")
+          .select("-refreshToken");
 
         res.status(200).json({
-          _id,
-          email,
-          libraryName,
-          address,
-          about,
-          image,
+          data: foundLibraryExceptPassword,
           accessToken,
-          booksRequested,
-          availableBooks,
         });
       } else {
         res.status(401).json({ error: "Incorrect Password" });
@@ -118,8 +107,9 @@ exports.loginToLibrary = async (req, res) => {
 
 // GET LIBRARY DATA FOR LIBRARY DASHBOARD
 exports.getLibraryData = async (req, res) => {
+  const { libraryEmail } = req.body;
   try {
-    const foundLibrary = await Library.findOne({ email: req.params.email })
+    const foundLibrary = await Library.findOne({ email: libraryEmail })
       .select("-password")
       .select("-refreshToken")
       .populate(
@@ -138,7 +128,7 @@ exports.getLibraryData = async (req, res) => {
 
 //GET BOOKS THAT HAVE BEEN REQUESTED BY A USER
 exports.getRequestedBooks = async (req, res) => {
-  const { libraryId } = req.body;
+  const { libraryId, libraryEmail } = req.body;
   try {
     const allBooks = await Book.find();
     const requestedBooks = allBooks.map((book) => {
@@ -148,12 +138,10 @@ exports.getRequestedBooks = async (req, res) => {
       "requester",
       "firstName lastName email bio address phoneNumber image"
     );
-    return res
-      .status(200)
-      .json({
-        message: "Books fetched successfully",
-        data: populatedRequestedBooks,
-      });
+    return res.status(200).json({
+      message: "Books fetched successfully",
+      data: populatedRequestedBooks,
+    });
   } catch (error) {
     console.log(error);
     return res
@@ -193,7 +181,7 @@ exports.uploadBook = async (req, res) => {
   } = req.body;
 
   try {
-    const newBook = await new Book.create({
+    const newBook = await new Book({
       bookImage,
       bookTitle,
       bookId,
@@ -202,6 +190,13 @@ exports.uploadBook = async (req, res) => {
     });
 
     const newBookSaved = await newBook.save();
+    const newBookId = newBook._id.valueOf();
+
+    await Library.findByIdAndUpdate(library_that_owns_book, {
+      $push: {
+        availableBooks: newBookId,
+      },
+    });
     return res.status(200).json({
       message: "Book Created Successfully",
       bookDetails: newBookSaved,
@@ -209,7 +204,7 @@ exports.uploadBook = async (req, res) => {
   } catch (error) {
     console.log(error);
     return res.status(500).json({
-      error: error.code,
+      errorCode: error.code,
       message: "An Error Occured While Saving Book",
     });
   }
@@ -217,22 +212,68 @@ exports.uploadBook = async (req, res) => {
 
 //APPROVE OR DECLINE BOOK REQUEST
 exports.approveOrDeclineBookRequest = async (req, res) => {
-  const { action, libraryId, bookId } = req.body;
+  const { action, libraryId, bookId, libraryEmail } = req.body;
   const bookToBeBorrowed = await Book.findOne({ _id: bookId });
 
-  if (libraryId === bookToBeBorrowed.library_that_owns_book) {
+  if (libraryId === bookToBeBorrowed.library_that_owns_book.valueOf()) {
     try {
       if (action === "approve") {
-        bookToBeBorrowed.date_borrowed = new Date.now();
-        bookToBeBorrowed.status = "borrowed";
-        bookToBeBorrowed.date_to_be_returned =
-          bookToBeBorrowed.date_promised_by_borrower;
-        return res.status(200).json({ message: "Book request was approved" });
+        const approvedRequestedBook = await bookToBeBorrowed.updateOne(
+          {
+            $set: {
+              date_borrowed: Date.now(),
+              status: "borrowed",
+              date_to_be_returned: bookToBeBorrowed.date_promised_by_borrower,
+            },
+          },
+          {
+            new: true,
+          }
+        );
+
+        await User.findByIdAndUpdate(bookToBeBorrowed.requester.valueOf(), {
+          $pull: {
+            booksRequested: bookId,
+          },
+          $push: {
+            booksBorrowed: bookId,
+          },
+        });
+
+        return res.status(200).json({
+          message: "Book request was approved",
+          data: approvedRequestedBook,
+        });
       } else {
-        bookToBeBorrowed.status = "available";
-        bookToBeBorrowed.date_promised_by_borrower = "";
-        bookToBeBorrowed.requester = "";
-        return res.status(201).json({ message: "Book request was declined" });
+        const declinedRequestedBook = await bookToBeBorrowed.updateOne(
+          {
+            $set: {
+              status: "available",
+            },
+            $unset: {
+              requester: "",
+              date_to_be_returned: null,
+              date_borrowed: null,
+            },
+          },
+          {
+            new: true,
+          }
+        );
+
+        //Update the borrowers borrowed list here
+        await User.findByIdAndUpdate(bookToBeBorrowed.requester.valueOf(), {
+          $pull: {
+            $pull: {
+              booksRequested: bookId,
+            },
+          }
+        });
+
+        return res.status(201).json({
+          message: "Book request was declined",
+          data: declinedRequestedBook,
+        });
       }
     } catch (error) {
       console.log(error);
@@ -250,15 +291,40 @@ exports.approveOrDeclineBookRequest = async (req, res) => {
 
 // MARK BOOK AS RETURNED
 exports.markBookAsReturned = async (req, res) => {
-  const { action, libraryId, bookId } = req.body;
+  const { libraryId, bookId } = req.body;
   const bookToBeBorrowed = await Book.findOne({ _id: bookId });
 
-  if (libraryId === bookToBeBorrowed.library_that_owns_book) {
+  if (libraryId === bookToBeBorrowed.library_that_owns_book.valueOf()) {
     try {
-      bookToBeBorrowed.status = "available";
-      bookToBeBorrowed.date_promised_by_borrower = "";
-      bookToBeBorrowed.date_to_be_returned = "";
-      bookToBeBorrowed.requester = "";
+      const returnedBook = await bookToBeBorrowed.updateOne(
+        {
+          $set: {
+            status: "available",
+          },
+          $unset: {
+            date_promised_by_borrower: "",
+            date_to_be_returned: "",
+            requester: "",
+            date_requested: "",
+            date_borrowed: "",
+          },
+        },
+        {
+          new: true,
+        }
+      );
+
+      //Update user borrowed list here
+      await User.findByIdAndUpdate(bookToBeBorrowed.requester.valueOf(), {
+        $pull: {
+          booksBorrowed: bookId,
+        },
+      });
+
+      return res.status(200).json({
+        message: "Book Was successfully marked as returned",
+        data: returnedBook,
+      });
     } catch (error) {
       console.log(error);
       return res.status(500).json({

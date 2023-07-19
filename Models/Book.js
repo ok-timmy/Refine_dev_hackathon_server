@@ -38,6 +38,7 @@ const bookSchema = new mongoose.Schema(
     },
     status: {
       type: String,
+      default: "available",
       //  Can be requested, borrowed, available
     },
     bookImage: {
