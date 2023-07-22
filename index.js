@@ -11,15 +11,17 @@ var cors = require("cors");
 const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
 const path = require("path");
+const { default: helmet } = require("helmet");
 // const verifyJWT = require("./Middlewares/verifyJWT");
 
 dotenv.config();
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
+app.use(cors({credentials: true, origin: 'http://localhost:5173'}));
+app.use(helmet())
 app.use(cookieParser());
+app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 // app.use("/public", express.static(path.join(__dirname, "/public")))
 

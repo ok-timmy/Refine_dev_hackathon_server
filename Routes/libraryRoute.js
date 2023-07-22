@@ -26,7 +26,7 @@ router.post("/auth/login", loginToLibrary);
 
 
 //GET LIBRARY DATA
-router.get("/:email", verifyJWT, getLibraryData);
+router.get("/:libraryEmail", getLibraryData);
 
 //GET REQUESTED BOOKS
 router.get("/requested-books", verifyJWT, getRequestedBooks);

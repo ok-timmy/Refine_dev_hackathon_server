@@ -8,6 +8,6 @@ const {
 router.get("/user", handleLogoutForUserController);
 
 //LOG OUT LIBRARIAN
-router.get("/librarian", handleLogoutForLibrarianController);
+router.get("/library", handleLogoutForLibrarianController);
 
 module.exports = router;

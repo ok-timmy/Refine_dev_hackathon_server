@@ -5,9 +5,9 @@ const {
 } = require("../Controllers/refreshTokenController");
 
 //GET USER REFRESH TOKEN
-router.get("/user/refreshToken", handleUserRefreshToken);
+router.post("/user/refreshToken", handleUserRefreshToken);
 
 // GET LIBRARY REFRESH TOKEN
-router.get("/library/refreshToken", handleLibrarianRefreshToken);
+router.post("/library/refreshToken", handleLibrarianRefreshToken);
 
 module.exports = router;

@@ -6,68 +6,74 @@ const jwt = require("jsonwebtoken");
 exports.handleUserRefreshToken = async (req, res) => {
   const cookies = req.cookies;
   if (!cookies.jwt) {
-    res.sendStatus(401);
+    res.status(401).json({ message: "Cookies Not found" });
   } else {
     const refreshToken = cookies.jwt;
     const foundUser = await User.findOne({ refreshToken }).exec();
 
     if (!foundUser) {
-      res.sendStatus(403);
+      res.status(403).json({ message: "No Library Found" });
     }
 
     jwt.verify(
       refreshToken,
       process.env.REFRESH_TOKEN_SECRET,
       (err, decoded) => {
-        if (err || decoded.email !== req.body.email) res.sendStatus(403);
+        if (err || decoded.email !== req.body.email)
+          res.status(403).json({ message: "Could Not verify" });
 
-        const accessToken = jwt.sign(
+        const refreshToken = jwt.sign(
           {
             email: decoded.email,
           },
-          process.env.ACCESS_TOKEN_SECRET,
+          process.env.REFRESH_TOKEN_SECRET,
           {
             expiresIn: "200m",
           }
         );
 
-        res.json({ accessToken });
+        return res.status(200).json({ accessToken: refreshToken });
       }
     );
   }
 };
 
-// Handle Librarian RefreshToken 
-exports.handleLibrarianRefreshToken = async(req, res) => {
-    const cookies = req.cookies;
-  if (!cookies.jwt) {
-    res.sendStatus(401);
+// Handle Librarian RefreshToken
+exports.handleLibrarianRefreshToken = async (req, res) => {
+  const cookies = req.cookies;
+  if (!cookies.libraryCookie) {
+    console.log("Cookies", req.cookies);
+    return res.status(401).json({ message: "Cookies Not found" });
   } else {
-    const refreshToken = cookies.jwt;
-    const foundLibrary = await Library.findOne({ refreshToken }).exec();
-
-    if (!foundLibrary) {
-      res.sendStatus(403);
-    }
-
-    jwt.verify(
+    const refreshToken = cookies.libraryCookie;
+    const foundLibrary = await Library.findOne({
       refreshToken,
-      process.env.REFRESH_TOKEN_SECRET,
-      (err, decoded) => {
-        if (err || decoded.email !== req.body.email) res.sendStatus(403);
-
-        const accessToken = jwt.sign(
-          {
-            libraryEmail: decoded.email,
-          },
-          process.env.ACCESS_TOKEN_SECRET,
-          {
-            expiresIn: "200m",
+    });
+    console.log("foundLibrary", foundLibrary);
+    if (foundLibrary === null) {
+      return res.status(403).json({ message: "No Library Found" });
+    } else {
+      jwt.verify(
+        refreshToken,
+        process.env.REFRESH_TOKEN_SECRET,
+        (err, decoded) => {
+          if (err || decoded.libraryEmail !== req.body.libraryEmail) {
+            return res.status(403).json({ message: "Could Not verify" });
           }
-        );
 
-        res.json({ accessToken });
-      }
-    );
+          const refreshToken = jwt.sign(
+            {
+              libraryEmail: decoded.email,
+            },
+            process.env.REFRESH_TOKEN_SECRET,
+            {
+              expiresIn: "200m",
+            }
+          );
+
+          return res.status(200).json({ accessToken: refreshToken });
+        }
+      );
+    }
   }
-}
+};

@@ -65,7 +65,7 @@ exports.loginToLibrary = async (req, res) => {
         const accessToken = jwt.sign(
           { libraryEmail: foundLibrary.email },
           process.env.ACCESS_TOKEN_SECRET,
-          { expiresIn: "12000s" }
+          { expiresIn: "2h" }
         );
 
         const refreshToken = jwt.sign(
@@ -77,13 +77,12 @@ exports.loginToLibrary = async (req, res) => {
         foundLibrary.refreshToken = refreshToken;
         await foundLibrary.save();
 
-        res.cookie("jwt", accessToken, {
+        res.cookie("libraryCookie", refreshToken, {
           httpOnly: true,
           maxAge: 1000 * 60 * 60 * 24,
           sameSite: "None",
           secure: true,
         });
-
         const foundLibraryExceptPassword = await Library.findOne({
           email: req.body.email,
         })
@@ -101,13 +100,15 @@ exports.loginToLibrary = async (req, res) => {
       res.status(401).send({ message: "Library does not exist" });
     }
   } catch (error) {
-    res.status(403).send({ message: error });
+    console.log(error);
+    res.status(500).send({ message: "An Error occured while trying to login" });
   }
 };
 
 // GET LIBRARY DATA FOR LIBRARY DASHBOARD
 exports.getLibraryData = async (req, res) => {
-  const { libraryEmail } = req.body;
+  const { libraryEmail } = req.params;
+  console.log(libraryEmail);
   try {
     const foundLibrary = await Library.findOne({ email: libraryEmail })
       .select("-password")
@@ -267,7 +268,7 @@ exports.approveOrDeclineBookRequest = async (req, res) => {
             $pull: {
               booksRequested: bookId,
             },
-          }
+          },
         });
 
         return res.status(201).json({

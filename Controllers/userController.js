@@ -63,19 +63,19 @@ exports.loginUser = async (req, res) => {
         const accessToken = jwt.sign(
           { userEmail: foundUser.email },
           process.env.ACCESS_TOKEN_SECRET,
-          { expiresIn: "12000s" }
+          { expiresIn: "2h" }
         );
 
         const refreshToken = jwt.sign(
           { userEmail: foundUser.email },
-          process.env.REFRESH_TOKEN_SECRET,
+          process.env.ACCESS_TOKEN_SECRET,
           { expiresIn: "1d" }
         );
 
         foundUser.refreshToken = refreshToken;
         await foundUser.save();
 
-        res.cookie("jwt", accessToken, {
+        res.cookie("jwt", refreshToken, {
           httpOnly: true,
           maxAge: 1000 * 60 * 60 * 24,
           sameSite: "None",
